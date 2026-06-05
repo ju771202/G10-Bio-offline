@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>10年級生物複習</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f8ff; color: #333; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        #app { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 800px; }
+        h1 { text-align: center; color: #2c3e50; }
+        .header-info { display: flex; justify-content: space-between; font-size: 1.1em; font-weight: bold; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #eee; }
+        .timer { color: #e74c3c; font-size: 1.2em; }
+        .question-type { background-color: #3498db; color: white; padding: 5px 10px; border-radius: 5px; font-size: 0.9em; display: inline-block; margin-bottom: 15px; }
+        .question-text { font-size: 1.3em; margin-bottom: 20px; line-height: 1.5; }
+        .options-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px; }
+        .option { padding: 12px 15px; border: 2px solid #bdc3c7; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 1.1em; display: flex; align-items: center; }
+        .option:hover { background-color: #f7f9fa; border-color: #3498db; }
+        .option.selected { background-color: #ebf5fb; border-color: #3498db; box-shadow: 0 0 5px rgba(52, 152, 219, 0.5); }
+        .option.correct { background-color: #d5f5e3; border-color: #2ecc71; }
+        .option.wrong { background-color: #fadbd8; border-color: #e74c3c; }
+        .controls { display: flex; justify-content: space-between; }
+        button { padding: 10px 20px; font-size: 1.1em; border: none; border-radius: 5px; cursor: pointer; color: white; transition: 0.2s; }
+        #btn-confirm { background-color: #2ecc71; }
+        #btn-confirm:disabled { background-color: #95a5a6; cursor: not-allowed; }
+        #btn-confirm:hover:not(:disabled) { background-color: #27ae60; }
+        #btn-end { background-color: #e74c3c; }
+        #btn-end:hover { background-color: #c0392b; }
+        #btn-next { background-color: #f39c12; display: none; }
+        #btn-next:hover { background-color: #d68910; }
+        .feedback { text-align: center; font-size: 1.8em; font-weight: bold; margin-top: 20px; min-height: 40px; }
+        .feedback.success { color: #2ecc71; }
+        .feedback.error { color: #e74c3c; }
+        #result-screen { display: none; text-align: center; }
+        .final-score { font-size: 4em; color: #3498db; margin: 20px 0; }
+        .score-details { font-size: 1.2em; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <h1>10年級生物複習</h1>
+    
+    <div id="start-screen" style="text-align: center;">
+        <p>測驗包含單選題（1分）與多選題（3分）。</p>
+        <p>每題作答時間 <b>20秒</b>。多選題少答或答錯一個選項扣1分，扣至0分為止（不倒扣）。</p>
+        <p>題目將以「5題單選、5題多選」交替隨機出現。</p>
+        <button id="btn-start" style="background-color: #3498db; margin-top: 20px; font-size: 1.3em;">開始測驗</button>
+    </div>
+
+    <div id="quiz-screen" style="display: none;">
+        <div class="header-info">
+            <span id="question-counter">題號: 1</span>
+            <span class="timer">倒數: <span id="time-left">20</span> 秒</span>
+        </div>
+        <div id="question-type" class="question-type"></div>
+        <div id="question-text" class="question-text"></div>
+        <div id="options-container" class="options-container"></div>
+        
+        <div class="controls">
+            <button id="btn-end">結束測驗</button>
+            <button id="btn-next">下一題</button>
+            <button id="btn-confirm" disabled>確認</button>
+        </div>
+        <div id="feedback" class="feedback"></div>
+    </div>
+
+    <div id="result-screen">
+        <h2>測驗結束</h2>
+        <div class="final-score" id="final-percent">0 分</div>
+        <div class="score-details" id="score-details"></div>
+        <button style="background-color: #3498db; margin-top: 20px;" onclick="location.reload()">重新測驗</button>
+    </div>
+</div>
+
+<script>
+    // --- 題庫資料 ---
+    // 單選題庫 (20題範例，選項A-D，ans為正確索引 0-3)
+    const singleChoiceData = [
+        { q: "證明「肉汁長出微生物是來自空氣的塵埃」的鵝頸瓶實驗是由哪位科學家進行的？", options: ["雷迪", "尼丹", "巴斯德", "蒲歇"], ans: 2 },
+        { q: "地球上最早出現的生命推測大約出現在距今多少年前？", options: ["46億年前", "38億年前", "20億年前", "5億年前"], ans: 1 },
+        { q: "提出「用進廢退說」及「獲得性遺傳」來解釋演化機制的學者是誰？", options: ["達爾文", "林奈", "拉馬克", "華萊士"], ans: 2 },
+        { q: "米勒和尤里的放電實驗中，模擬原始大氣的成分「不包含」下列何種氣體？", options: ["氧氣", "氫氣", "甲烷", "氨氣"], ans: 0 },
+        { q: "下列哪一項屬於「同源構造」？", options: ["鯨的鰭與魚的鰭", "鳥的翅膀與昆蟲的翅膀", "人的手與蝙蝠的翼", "大赤鼯鼠的皮膜與蜜袋鼯的皮膜"], ans: 2 },
+        { q: "科學家發現哪一種分子兼具遺傳訊息攜帶與酵素催化(Ribozyme)功能，推測其為生命最早的遺傳物質？", options: ["DNA", "RNA", "蛋白質", "磷脂"], ans: 1 },
+        { q: "根據現代演化綜論，演化的基本單位是下列何者？", options: ["個體", "族群", "群集", "生態系"], ans: 1 },
+        { q: "提出「災變說」以解釋化石的滅絕，並試圖捍衛創造論的科學家是？", options: ["居維業", "赫頓", "萊爾", "馬爾薩斯"], ans: 0 },
+        { q: "下列何者為「天擇」作用的結果？", options: ["甘藍菜培育出花椰菜", "長頸鹿伸長脖子吃樹葉", "無形中抗藥性細菌比例增加", "同種蝸牛有左旋和右旋"], ans: 2 },
+        { q: "當族群數量因天災驟減，僅少數個體隨機存活，導致基因頻率發生改變的現象稱為？", options: ["創始者效應", "瓶頸效應", "基因流動", "突變"], ans: 1 },
+        { q: "鳥類與恐龍皆具有「叉骨」，此特徵在分類上作為親緣關係的何種證據？", options: ["同功構造", "胚胎學證據", "分子生物學證據", "解剖學同源構造"], ans: 3 },
+        { q: "臺灣的五種山椒魚因高山地形阻隔，無法進行基因交流而形成不同物種，屬於何種種化機制？", options: ["同域種化", "異域種化", "行為隔離", "配子隔離"], ans: 1 },
+        { q: "提出「六界說」，將原核生物進一步分為古細菌和真細菌的學者是？", options: ["林奈", "懷塔克", "渥易斯", "福克斯"], ans: 2 },
+        { q: "小麥的演化過程中，發生染色體加倍而形成具生殖能力的後代，此種化機制最可能是？", options: ["異源多倍體", "同源多倍體", "地理隔離", "時間隔離"], ans: 0 },
+        { q: "根據「生物種」的概念，判斷兩個個體是否為同種的主要標準為？", options: ["形態外觀是否相同", "是否生活在同一棲地", "是否能自然交配並產生具有生殖力的後代", "DNA序列是否100%相同"], ans: 2 },
+        { q: "工業革命時期英國曼徹斯特的深色胡椒蛾數量大增，此現象屬於哪一種天擇模式？", options: ["穩定型天擇", "分裂型天擇", "定向天擇", "隨機天擇"], ans: 2 },
+        { q: "非洲莫三比克內戰導致盜獵猖獗，使得非洲象族群中「無象牙」個體比例大增，這是何種機制的結果？", options: ["基因流動", "天擇", "用進廢退", "人工篩選(育種)"], ans: 1 },
+        { q: "不同種的螢火蟲具有不同的發光頻率，導致無法交配，這屬於合子形成前的哪種隔離？", options: ["棲地隔離", "時間隔離", "行為隔離", "構造隔離"], ans: 2 },
+        { q: "若一處於哈溫平衡的族群中，隱性性狀(aa)的發生率為4%，則等位基因 A 的頻率為？", options: ["0.2", "0.4", "0.8", "0.96"], ans: 2 },
+        { q: "馬與驢交配生下的騾不具生殖能力，此屬於何種生殖隔離？", options: ["行為隔離", "配子隔離", "合子形成後的屏障", "棲地隔離"], ans: 2 }
+    ];
+
+    // 多選題庫 (20題範例，選項A-E，ans為正確索引陣列，required為應選項數)
+    const multiChoiceData = [
+        { q: "下列哪些屬於達爾文天擇說的核心概念？", options: ["物種具有共同祖先", "個體間存在遺傳變異", "生物會因經常使用某器官而使其發達", "過度繁殖引起生存競爭", "後天獲得的性狀可遺傳"], ans: [0, 1, 3], required: 3 },
+        { q: "化學演化假說中，關於生命起源的順序，下列哪些正確？", options: ["先有有機小分子再有有機大分子", "先有DNA再有RNA", "先有異營生物再有自營生物", "先有有氧呼吸再有無氧呼吸", "先有原核生物再有真核生物"], ans: [0, 2, 4], required: 3 },
+        { q: "下列哪些特徵支持「內共生假說」中粒線體與葉綠體源自原核生物？", options: ["兩者皆具雙層膜", "兩者皆有環狀DNA", "兩者的核糖體大小與真核細胞質的相同", "兩者的複製方式類似細菌的二分裂法", "兩者皆可獨立在細胞外存活"], ans: [0, 1, 3], required: 3 },
+        { q: "要維持「哈溫平衡」(理想族群)，必須符合下列哪些條件？", options: ["族群個體數極大", "個體間隨機交配", "沒有天擇壓力", "時常發生基因突變", "頻繁的基因流動(遷入/遷出)"], ans: [0, 1, 2], required: 3 },
+        { q: "下列關於同源構造與同功構造的敘述，哪些正確？", options: ["蝙蝠的翼與鳥的翅膀為同功構造", "鯨魚的鰭與貓的前肢為同源構造", "同源構造可用來判斷演化親緣關係", "同功構造源自於趨同演化", "同源構造必然具有相同的功能"], ans: [1, 2, 3], required: 3 },
+        { q: "下列哪些屬於「合子形成前的生殖隔離」？", options: ["時間隔離", "行為隔離", "雜交後代不孕", "構造(機械)隔離", "雜交後代夭折"], ans: [0, 1, 3], required: 3 },
+        { q: "關於病毒的特性，下列哪些敘述正確？", options: ["屬於原核生物界", "具有DNA或RNA作為遺傳物質", "絕對寄生，離開宿主無法自行繁殖", "具有完整的酵素系統以產生ATP", "不具細胞膜、細胞質等細胞基本構造"], ans: [1, 2, 4], required: 3 },
+        { q: "下列哪些生物屬於「三域系統」中的真核生物域？", options: ["酵母菌", "藍綠菌", "眼蟲", "大腸桿菌", "人類"], ans: [0, 2, 4], required: 3 },
+        { q: "「中性演化理論」的主要論點包括下列哪些？", options: ["分子層次的突變大多是中性的", "中性突變對個體生存有極大好處", "中性突變的保留主要靠遺傳漂變", "完全否定了達爾文的天擇說", "可作為分子時鐘的理論基礎"], ans: [0, 2, 4], required: 3 },
+        { q: "導致生物多樣性下降的人為因素主要有哪些？", options: ["棲地破壞與零碎化", "設立國家公園", "引進外來入侵種", "過度捕獵", "減碳政策"], ans: [0, 2, 3], required: 3 },
+        { q: "下列哪些是人類與其他靈長類(如黑猩猩)的共同特徵？", options: ["同屬於靈長目", "都是由古代猴子直接演化而來", "DNA序列有極高的相似度", "具有共同的祖先", "人類的腦容量與黑猩猩完全相同"], ans: [0, 2, 3], required: 3 },
+        { q: "根據現代演化綜論，下列哪些機制會改變族群的等位基因頻率？", options: ["突變", "天擇", "隨機交配", "基因流動", "遺傳漂變"], ans: [0, 1, 3, 4], required: 4 },
+        { q: "下列哪些屬於人體的「痕跡構造」？", options: ["盲腸", "尾骨", "犬齒", "心臟", "動耳肌"], ans: [0, 1, 4], required: 3 },
+        { q: "關於「同域種化」的敘述，哪些正確？", options: ["發生在同一個地理區域內", "必須先有地理隔離才能發生", "常見於植物的多倍體化", "維多利亞湖的慈鯛是著名案例", "不可能發生在動物身上"], ans: [0, 2, 3], required: 3 },
+        { q: "下列哪些科學家及其貢獻的配對是正確的？", options: ["拉馬克－用進廢退說", "林奈－創立二名法", "馬爾薩斯－地質學原理", "巴斯德－鵝頸瓶實驗", "孟德爾－發現DNA雙股螺旋"], ans: [0, 1, 3], required: 3 },
+        { q: "關於「遺傳漂變」的敘述，哪些正確？", options: ["在小族群中影響特別顯著", "是一種隨機的機率現象", "一定會使族群的適應力提高", "瓶頸效應是遺傳漂變的一種", "創始者效應是遺傳漂變的一種"], ans: [0, 1, 3, 4], required: 4 },
+        { q: "針對鐮形血球貧血症，下列敘述哪些正確？", options: ["是一種隱性遺傳疾病", "由基因點突變造成", "在瘧疾疫區，異型合子(HbA HbS)具有生存優勢", "患者紅血球在缺氧時會變成鐮刀狀", "天擇在任何環境下都會完全淘汰此突變基因"], ans: [0, 1, 2, 3], required: 4 },
+        { q: "植物的多倍體化種化機制中，下列哪些正確？", options: ["同源多倍體常因減數分裂異常產生", "異源多倍體由不同物種雜交而來", "多倍體植物通常體型較小", "農業上常利用多倍體培育無子果實", "多倍體化是一種異域種化"], ans: [0, 1, 3], required: 3 },
+        { q: "關於分子生物學在演化上的應用，哪些敘述正確？", options: ["比較DNA序列可推測親緣關係", "序列相似度愈高，親緣關係愈近", "完全推翻了化石的演化證據", "胺基酸序列不能用來判斷演化關係", "可建立分子時鐘推估分歧時間"], ans: [0, 1, 4], required: 3 },
+        { q: "現代生物多樣性保育的層次包含哪些？", options: ["遺傳(基因)多樣性", "物種多樣性", "棲地大小多樣性", "生態系多樣性", "化石多樣性"], ans: [0, 1, 3], required: 3 }
+    ];
+
+    // --- 系統變數 ---
+    let questionQueue = [];
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let maxPossibleScore = 0;
+    let timerInterval;
+    let timeLeft = 20;
+    let selectedOptions = [];
+    let answered = false;
+
+    // DOM Elements
+    const screenStart = document.getElementById('start-screen');
+    const screenQuiz = document.getElementById('quiz-screen');
+    const screenResult = document.getElementById('result-screen');
+    const qCounter = document.getElementById('question-counter');
+    const tLeft = document.getElementById('time-left');
+    const qType = document.getElementById('question-type');
+    const qText = document.getElementById('question-text');
+    const optContainer = document.getElementById('options-container');
+    const btnConfirm = document.getElementById('btn-confirm');
+    const btnEnd = document.getElementById('btn-end');
+    const btnNext = document.getElementById('btn-next');
+    const btnStart = document.getElementById('btn-start');
+    const feedbackText = document.getElementById('feedback');
+    const finalPercent = document.getElementById('final-percent');
+    const scoreDetails = document.getElementById('score-details');
+
+    // --- 初始化陣列與隨機排序 ---
+    function shuffle(array) {
+        let currentIndex = array.length, randomIndex;
+        while (currentIndex !== 0) {
+            randomIndex = Math.floor(Math.random() * currentIndex);
+            currentIndex--;
+            [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+        }
+        return array;
+    }
+
+    function buildQueue() {
+        let sData = shuffle([...singleChoiceData]);
+        let mData = shuffle([...multiChoiceData]);
+        
+        questionQueue = [];
+        // 交替 5題單選、5題多選
+        while(sData.length > 0 || mData.length > 0) {
+            for(let i=0; i<5 && sData.length > 0; i++) {
+                let q = sData.pop();
+                q.type = 'single';
+                questionQueue.push(q);
+            }
+            for(let i=0; i<5 && mData.length > 0; i++) {
+                let q = mData.pop();
+                q.type = 'multiple';
+                questionQueue.push(q);
+            }
+        }
+    }
+
+    // --- 測驗流程控制 ---
+    btnStart.addEventListener('click', () => {
+        buildQueue();
+        screenStart.style.display = 'none';
+        screenQuiz.style.display = 'block';
+        loadQuestion();
+    });
+
+    btnEnd.addEventListener('click', showResult);
+    btnNext.addEventListener('click', () => {
+        currentQuestionIndex++;
+        loadQuestion();
+    });
+
+    function loadQuestion() {
+        if (currentQuestionIndex >= questionQueue.length) {
+            showResult();
+            return;
+        }
+
+        answered = false;
+        selectedOptions = [];
+        btnConfirm.disabled = true;
+        btnConfirm.style.display = 'inline-block';
+        btnNext.style.display = 'none';
+        feedbackText.textContent = "";
+        feedbackText.className = "feedback";
+        optContainer.innerHTML = "";
+        
+        let q = questionQueue[currentQuestionIndex];
+        qCounter.textContent = `題號: ${currentQuestionIndex + 1} / ${questionQueue.length}`;
+        
+        if (q.type === 'single') {
+            qType.textContent = "【單選題】";
+            qType.style.backgroundColor = "#3498db";
+            maxPossibleScore += 1;
+        } else {
+            qType.textContent = `【多選題 - 應選 ${q.required} 項】`;
+            qType.style.backgroundColor = "#9b59b6";
+            maxPossibleScore += 3;
+        }
+
+        qText.textContent = q.q;
+
+        const labels = ["A", "B", "C", "D", "E"];
+        q.options.forEach((optText, index) => {
+            let div = document.createElement('div');
+            div.className = 'option';
+            div.textContent = `${labels[index]}. ${optText}`;
+            div.onclick = () => handleSelect(index, div, q);
+            optContainer.appendChild(div);
+        });
+
+        startTimer();
+    }
+
+    function handleSelect(index, element, q) {
+        if (answered) return;
+
+        if (q.type === 'single') {
+            selectedOptions = [index];
+            Array.from(optContainer.children).forEach(child => child.classList.remove('selected'));
+            element.classList.add('selected');
+            btnConfirm.disabled = false;
+        } 
+        else if (q.type === 'multiple') {
+            if (selectedOptions.includes(index)) {
+                selectedOptions = selectedOptions.filter(i => i !== index);
+                element.classList.remove('selected');
+            } else {
+                if (selectedOptions.length < q.required) {
+                    selectedOptions.push(index);
+                    element.classList.add('selected');
+                }
+            }
+            btnConfirm.disabled = (selectedOptions.length !== q.required);
+        }
+    }
+
+    function startTimer() {
+        clearInterval(timerInterval);
+        timeLeft = 20;
+        tLeft.textContent = timeLeft;
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            tLeft.textContent = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timeOut();
+            }
+        }, 1000);
+    }
+
+    function timeOut() {
+        if (answered) return;
+        answered = true;
+        btnConfirm.disabled = true;
+        feedbackText.textContent = "時間到！請再複習";
+        feedbackText.className = "feedback error";
+        showCorrectAnswers();
+        btnConfirm.style.display = 'none';
+        btnNext.style.display = 'inline-block';
+    }
+
+    btnConfirm.addEventListener('click', () => {
+        if (answered) return;
+        answered = true;
+        clearInterval(timerInterval);
+        btnConfirm.disabled = true;
+
+        let q = questionQueue[currentQuestionIndex];
+        let isPerfect = false;
+
+        if (q.type === 'single') {
+            if (selectedOptions[0] === q.ans) {
+                score += 1;
+                isPerfect = true;
+                feedbackText.textContent = "太棒了";
+                feedbackText.className = "feedback success";
+            } else {
+                feedbackText.textContent = "請再複習";
+                feedbackText.className = "feedback error";
+            }
+        } 
+        else if (q.type === 'multiple') {
+            // 邏輯：每題多答或少答一個選項扣一分，最多扣3分
+            // 錯失的正確答案數量
+            let missed = q.ans.filter(x => !selectedOptions.includes(x)).length;
+            // 多選的錯誤答案數量
+            let extra = selectedOptions.filter(x => !q.ans.includes(x)).length;
+            
+            let errors = missed + extra;
+            let earned = Math.max(0, 3 - errors);
+            score += earned;
+
+            if (earned === 3) {
+                isPerfect = true;
+                feedbackText.textContent = "太棒了";
+                feedbackText.className = "feedback success";
+            } else {
+                feedbackText.textContent = `請再複習 (得分: ${earned}/3)`;
+                feedbackText.className = "feedback error";
+            }
+        }
+
+        showCorrectAnswers(selectedOptions);
+
+        btnConfirm.style.display = 'none';
+        btnNext.style.display = 'inline-block';
+    });
+
+    function showCorrectAnswers(userSelected = []) {
+        let q = questionQueue[currentQuestionIndex];
+        let optionsDivs = Array.from(optContainer.children);
+        
+        optionsDivs.forEach(div => div.style.pointerEvents = 'none'); // Disable clicks
+
+        if (q.type === 'single') {
+            optionsDivs[q.ans].classList.add('correct');
+            if (userSelected.length > 0 && userSelected[0] !== q.ans) {
+                optionsDivs[userSelected[0]].classList.add('wrong');
+            }
+        } else {
+            q.ans.forEach(ansIdx => {
+                optionsDivs[ansIdx].classList.add('correct');
+            });
+            userSelected.forEach(selIdx => {
+                if (!q.ans.includes(selIdx)) {
+                    optionsDivs[selIdx].classList.add('wrong');
+                }
+            });
+        }
+    }
+
+    function showResult() {
+        clearInterval(timerInterval);
+        screenQuiz.style.display = 'none';
+        screenResult.style.display = 'block';
+        
+        finalPercent.textContent = `${score} 分`;
+        scoreDetails.innerHTML = `
+            總得分: <b>${score}</b> 分<br>
+            總配分: <b>${maxPossibleScore}</b> 分<br>
+            已作答題數: <b>${currentQuestionIndex}</b> 題
+        `;
+    }
+
+</script>
+
+</body>
+</html>
