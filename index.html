@@ -43,7 +43,7 @@
     <div id="start-screen" style="text-align: center;">
         <p>測驗包含單選題（1分）與多選題（3分）。</p>
         <p>每題作答時間 <b>20秒</b>。多選題少答或答錯一個選項扣1分，扣至0分為止（不倒扣）。</p>
-        <p>題目將以「5題單選、5題多選」交替隨機出現。</p>
+        <p>題目將以「5題單選、5題多選」交替隨機出現，可自行按「結束測驗」查看百分制得分。</p>
         <button id="btn-start" style="background-color: #3498db; margin-top: 20px; font-size: 1.3em;">開始測驗</button>
     </div>
 
@@ -130,6 +130,10 @@
     let timerInterval;
     let timeLeft = 20;
     let selectedOptions = [];
+    let currentQuestionPossibleScore = 0;
+    let answeredCount = 0;
+    let answeredRecorded = false;
+    let answeredDisplayNumber = 0;
     let answered = false;
 
     // DOM Elements
@@ -183,6 +187,11 @@
     // --- 測驗流程控制 ---
     btnStart.addEventListener('click', () => {
         buildQueue();
+        currentQuestionIndex = 0;
+        score = 0;
+        maxPossibleScore = 0;
+        answeredCount = 0;
+        answeredDisplayNumber = 0;
         screenStart.style.display = 'none';
         screenQuiz.style.display = 'block';
         loadQuestion();
@@ -196,11 +205,12 @@
 
     function loadQuestion() {
         if (currentQuestionIndex >= questionQueue.length) {
-            showResult();
-            return;
+            buildQueue();
+            currentQuestionIndex = 0;
         }
 
         answered = false;
+        answeredRecorded = false;
         selectedOptions = [];
         btnConfirm.disabled = true;
         btnConfirm.style.display = 'inline-block';
@@ -210,16 +220,16 @@
         optContainer.innerHTML = "";
         
         let q = questionQueue[currentQuestionIndex];
-        qCounter.textContent = `題號: ${currentQuestionIndex + 1} / ${questionQueue.length}`;
+        qCounter.textContent = `題號: ${answeredDisplayNumber + 1}`;
         
         if (q.type === 'single') {
             qType.textContent = "【單選題】";
             qType.style.backgroundColor = "#3498db";
-            maxPossibleScore += 1;
+            currentQuestionPossibleScore = 1;
         } else {
             qType.textContent = `【多選題 - 應選 ${q.required} 項】`;
             qType.style.backgroundColor = "#9b59b6";
-            maxPossibleScore += 3;
+            currentQuestionPossibleScore = 3;
         }
 
         qText.textContent = q.q;
@@ -273,9 +283,19 @@
         }, 1000);
     }
 
+    function recordAnsweredQuestion() {
+        if (!answeredRecorded) {
+            maxPossibleScore += currentQuestionPossibleScore;
+            answeredCount++;
+            answeredDisplayNumber++;
+            answeredRecorded = true;
+        }
+    }
+
     function timeOut() {
         if (answered) return;
         answered = true;
+        recordAnsweredQuestion();
         btnConfirm.disabled = true;
         feedbackText.textContent = "時間到！請再複習";
         feedbackText.className = "feedback error";
@@ -289,6 +309,7 @@
         answered = true;
         clearInterval(timerInterval);
         btnConfirm.disabled = true;
+        recordAnsweredQuestion();
 
         let q = questionQueue[currentQuestionIndex];
         let isPerfect = false;
@@ -359,11 +380,12 @@
         screenQuiz.style.display = 'none';
         screenResult.style.display = 'block';
         
-        finalPercent.textContent = `${score} 分`;
+        let percent = maxPossibleScore === 0 ? 0 : Math.round((score / maxPossibleScore) * 100);
+        finalPercent.textContent = `${percent} 分`;
         scoreDetails.innerHTML = `
-            總得分: <b>${score}</b> 分<br>
-            總配分: <b>${maxPossibleScore}</b> 分<br>
-            已作答題數: <b>${currentQuestionIndex}</b> 題
+            百分制得分: <b>${percent}</b> 分<br>
+            原始得分: <b>${score}</b> / <b>${maxPossibleScore}</b> 分<br>
+            已完成題數: <b>${answeredCount}</b> 題
         `;
     }
 
